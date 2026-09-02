@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Local databases and backups
+*.sqlite
+*.sqlite3
+*.db
+data/
+
+# Secrets and local configuration
+.env
+.env.*
+*.env
+api.env
+telegram.env
+secrets/
+
+# Runtime and editor files
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# Machine-specific files
+bin/cloudflared
+cd
