@@ -11,6 +11,12 @@ DB_PATH = Path.home() / ".config" / "http-server" / "ledger.sqlite3"
 def _connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
+    conn.execute("""CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        telegram_user_id INTEGER UNIQUE NOT NULL,
+        name TEXT,
+        created_at TEXT NOT NULL
+    )""")
     conn.execute("""CREATE TABLE IF NOT EXISTS expenses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         telegram_user_id INTEGER NOT NULL,
@@ -41,16 +47,21 @@ def add_expense(user_id: int, chat_id: int, parsed, name=None) -> None:
         conn.execute("INSERT INTO expenses (telegram_user_id, telegram_chat_id, description, amount, category, created_at) VALUES (?, ?, ?, ?, ?, ?)", (user_id, chat_id, content, amount, category, datetime.now(timezone.utc).isoformat()))
 
 
-def query_expenses(month=None, limit=100):
+def query_expenses(month=None, user=None, category=None, limit=100):
     conn=_connect(); conn.row_factory=sqlite3.Row
-    rows=conn.execute("SELECT id, CASE telegram_user_id WHEN 8631664727 THEN '지희' ELSE CAST(telegram_user_id AS TEXT) END AS name, description AS merchant, amount, category, substr(created_at,1,10) AS spent_at FROM expenses ORDER BY id DESC LIMIT ?",(limit,)).fetchall(); conn.close()
-    return [dict(x) for x in rows]
+    where=[]; args=[]
+    if month: where.append("created_at LIKE ?"); args.append(month+'%')
+    if user: where.append("telegram_user_id=?"); args.append(int(user))
+    if category: where.append("category=?"); args.append(category)
+    clause=(' WHERE '+' AND '.join(where)) if where else ''
+    rows=conn.execute("SELECT id, CASE telegram_user_id WHEN 8631664727 THEN '지희' WHEN 8806961376 THEN '광래' ELSE CAST(telegram_user_id AS TEXT) END AS name, telegram_user_id, description AS merchant, amount, category, substr(created_at,1,10) AS spent_at FROM expenses"+clause+" ORDER BY id DESC LIMIT ?",(*args,limit)).fetchall(); conn.close(); return [dict(x) for x in rows]
 
 def statistics(month=None):
-    conn=_connect(); total=conn.execute('SELECT COALESCE(SUM(amount),0) FROM expenses').fetchone()[0]
-    cat=[dict(label=r[0],total=r[1]) for r in conn.execute('SELECT category,SUM(amount) FROM expenses GROUP BY category ORDER BY 2 DESC')]; conn.close()
-    return {'total':total,'category':cat,'users':[],'monthly':[]}
-
+    conn=_connect(); where=' WHERE created_at LIKE ?' if month else ''; args=(month+'%',) if month else ()
+    total=conn.execute('SELECT COALESCE(SUM(amount),0) FROM expenses'+where,args).fetchone()[0]
+    cat=[dict(label=r[0],total=r[1]) for r in conn.execute('SELECT category,SUM(amount) FROM expenses'+where+' GROUP BY category ORDER BY 2 DESC',args)]
+    monthly=[dict(label=r[0],total=r[1]) for r in conn.execute('SELECT substr(created_at,1,7),SUM(amount) FROM expenses GROUP BY 1 ORDER BY 1 DESC LIMIT 12')]
+    conn.close(); return {'total':total,'category':cat,'users':[],'monthly':monthly}
 
 def update_expense(expense_id, content, category, amount):
     conn=_connect(); conn.execute("UPDATE expenses SET description=?, category=?, amount=? WHERE id=?",(content,category,amount,expense_id)); conn.commit(); conn.close()
