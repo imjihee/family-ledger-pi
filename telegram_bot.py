@@ -40,12 +40,13 @@ def handle(message):
     if user_id not in ALLOWED:
         reply(chat_id, f"⛔ 등록되지 않은 사용자입니다. 관리자에게 이 ID를 전달하세요: {user_id}")
         return
-    if text in ("/start", "/help"):
-        reply(chat_id, "입력 형식: 카테고리번호 내용 금액(숫자만)\n1 식비\n2 여가\n3 통신/구독\n4 경조사\n5 쇼핑\n6 주거/생활\n예: 2 스타벅스 5500")
+    command = text.split()[0].split("@")[0] if text else ""
+    if command in ("/start", "/help", "start", "help", "도움말"):
+        reply(chat_id, "입력 형식: 카테고리번호 내용 금액(숫자만)\n1 식비\n2 여가\n3 통신/구독\n4 경조사\n5 쇼핑\n6 주거/생활\n7 저축/투자\n8 커피\n예: 8 스타벅스 5500")
         return
     parsed = parse_expense(text)
     if not parsed:
-        reply(chat_id, "입력 형식이 올바르지 않습니다.\n카테고리번호 내용 금액(숫자만)\n1 식비  2 여가  3 통신/구독  4 경조사  5 쇼핑  6 주거/생활\n예: 2 스타벅스 5500")
+        reply(chat_id, "입력 형식이 올바르지 않습니다.\n카테고리번호 내용 금액(숫자만)\n1 식비  2 여가  3 통신/구독  4 경조사  5 쇼핑  6 주거/생활\n7 저축/투자\n8 커피\n예: 8 스타벅스 5500")
         return
     description, amount, category = parsed
     add_expense(user_id, chat_id, parsed, user.get("first_name"))

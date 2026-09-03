@@ -31,8 +31,8 @@ def _connect() -> sqlite3.Connection:
 
 
 def parse_expense(text: str):
-    categories = {"1": "식비", "2": "여가", "3": "통신/구독", "4": "경조사", "5": "쇼핑", "6": "주거/생활"}
-    match = re.match(r"^\s*([1-6])\s+(.+?)\s+(\d+)\s*$", text)
+    categories = {"1": "식비", "2": "여가", "3": "통신/구독", "4": "경조사", "5": "쇼핑", "6": "주거/생활", "7": "저축/투자", "8": "커피"}
+    match = re.match(r"^\s*([1-8])\s+(.+?)\s+(\d+)\s*$", text)
     if not match: return None
     category = categories[match.group(1)]
     content = match.group(2).strip()
@@ -63,8 +63,13 @@ def statistics(month=None):
     monthly=[dict(label=r[0],total=r[1]) for r in conn.execute('SELECT substr(created_at,1,7),SUM(amount) FROM expenses GROUP BY 1 ORDER BY 1 DESC LIMIT 12')]
     conn.close(); return {'total':total,'category':cat,'users':[],'monthly':monthly}
 
-def update_expense(expense_id, content, category, amount):
-    conn=_connect(); conn.execute("UPDATE expenses SET description=?, category=?, amount=? WHERE id=?",(content,category,amount,expense_id)); conn.commit(); conn.close()
+def update_expense(expense_id, content, category, amount, spent_at=None):
+    conn=_connect()
+    if spent_at:
+        conn.execute("UPDATE expenses SET description=?, category=?, amount=?, created_at=substr(?,1,10)||substr(created_at,11) WHERE id=?", (content, category, amount, spent_at, expense_id))
+    else:
+        conn.execute("UPDATE expenses SET description=?, category=?, amount=? WHERE id=?", (content, category, amount, expense_id))
+    conn.commit(); conn.close()
 
 def delete_expense(expense_id):
     conn=_connect(); conn.execute("DELETE FROM expenses WHERE id=?",(expense_id,)); conn.commit(); conn.close()
