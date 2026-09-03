@@ -7,6 +7,7 @@ import urllib.parse
 import urllib.request
 
 from ledger import add_expense, parse_expense
+from telegram_http import urlopen
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ API = f"https://api.telegram.org/bot{TOKEN}/"
 
 def api(method, **params):
     body = urllib.parse.urlencode(params).encode()
-    with urllib.request.urlopen(urllib.request.Request(API + method, data=body), timeout=45) as response:
+    with urlopen(urllib.request.Request(API + method, data=body), timeout=45) as response:
         result = json.load(response)
     if not result.get("ok"):
         raise RuntimeError(result)

@@ -61,6 +61,8 @@ http-server/
 4 경조사
 5 쇼핑
 6 주거/생활
+7 저축/투자
+8 커피
 ```
 
 예시:
@@ -114,6 +116,7 @@ Telegram 수신 경로와 웹 대시보드 접속 경로는 서로 독립적이�
 http-server.service          Flask 웹 서버
 telegram-ledger.service      Telegram Polling 봇
 http-server-tunnel.service   Cloudflare Tunnel
+weekly-report.timer           월요일 주간 OpenAI 리포트
 ```
 
 `loginctl enable-linger kim`이 설정되어 있으면 Raspberry Pi를 재부팅한 뒤
@@ -148,3 +151,16 @@ git status
 
 `git status`에서 토큰, `.env` 파일, `ledger.sqlite3`가 보이면 커밋하지 말고
 먼저 `.gitignore` 규칙을 확인한다.
+
+## 주간 OpenAI 리포트
+
+`weekly_report.py`가 매주 월요일에 현재 주(월요일~오늘)와 지난 주(월~일)를 SQLite에서 집계한다. 총액, 거래 건수, 일평균, 카테고리별·사용자별 합계, 일별 합계와 전주 대비 증감률만 OpenAI Responses API에 전달한다. 원본 거래 목록과 DB 파일은 전달하지 않는다.
+
+systemd 구성:
+
+```text
+weekly-report.timer   매주 월요일 09:00 실행
+weekly-report.service 1회성 Python 작업
+```
+
+`--dry-run` 옵션은 OpenAI와 Telegram을 호출하지 않고 집계 JSON만 출력하므로 테스트에 사용한다.

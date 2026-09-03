@@ -1,0 +1,9 @@
+[Unit]
+Description=Weekly OpenAI household expense report
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+WorkingDirectory=/home/kim/http-server
+EnvironmentFile=/home/kim/.config/http-server/weekly-report.env
+ExecStart=/home/kim/http-server/.venv/bin/python /home/kim/http-server/weekly_report.py
