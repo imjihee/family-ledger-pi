@@ -49,45 +49,83 @@ def collect_statistics(reference=None):
     return {"current": current, "previous": previous, "change_percent": change, "chat_ids": chats}
 
 
-def no_spending_summary(stats):
-    period = stats["current"]["period"]
-    return f"이번 주 ({period['start']} ~ {period['end']}) 지출이 없습니다."
+REPORT_TEMPLATE = """📊 우리 가족 주간 가계부
+📅 {current_start} ~ {current_end}
+
+💰 이번 주 지출: {current_total:,}원
+📈 전주 대비: {change_amount:+,}원 ({change_percent:+.1f}%)
+
+🏷️ 주요 지출
+{categories}
+
+💬 소비 분석
+{llm_analysis}"""
+
+NO_PREVIOUS_TEMPLATE = """📊 우리 가족 주간 가계부
+📅 {current_start} ~ {current_end}
+
+💰 이번 주 지출: {current_total:,}원
+
+🏷️ 주요 지출
+{categories}
+
+💬 소비 분석
+{llm_analysis}"""
+
+NO_SPENDING_TEMPLATE = """📊 우리 가족 주간 가계부
+📅 {current_start} ~ {current_end}
+
+💰 이번 주 지출: 0원
+
+이번 주 지출이 없습니다."""
+
+
+def _category_lines(stats, limit=3):
+    items = list(stats["current"].get("category_totals", {}).items())[:limit]
+    return "\n".join(f"• {category}: {amount:,}원" for category, amount in items) or "• 없음"
+
+
+def build_report_message(stats, llm_analysis=""):
+    current = stats["current"]
+    period = current["period"]
+    if current["total"] == 0:
+        return NO_SPENDING_TEMPLATE.format(current_start=period["start"], current_end=period["end"])
+    values = {"current_start": period["start"], "current_end": period["end"], "current_total": current["total"], "categories": _category_lines(stats), "llm_analysis": llm_analysis.strip()}
+    previous_total = stats["previous"]["total"]
+    if previous_total == 0:
+        return NO_PREVIOUS_TEMPLATE.format(**values)
+    change_amount = current["total"] - previous_total
+    change_percent = stats["change_percent"]
+    return REPORT_TEMPLATE.format(**values, change_amount=change_amount, change_percent=change_percent)
 
 
 def build_prompt(stats):
     data = {key: stats[key] for key in ("current", "previous", "change_percent")}
-    current_zero = stats["current"]["total"] == 0
-    previous_zero = stats["previous"]["total"] == 0
-    if current_zero:
-        instructions = """당신은 우리 가족의 가계부를 알려주는 소비 분석 어시스턴트입니다.
-이번 주 지출이 0원이라는 사실을 중심으로 짧고 친근하게 안내하세요.
-전주 지출이 있더라도 비교 평가나 억지스러운 제안은 하지 마세요.
-제공된 숫자를 그대로 사용하고, 원본 거래내역은 제공되지 않았습니다.
-Telegram 메시지로 150자 이내로 작성하세요."""
-    elif previous_zero:
-        instructions = """당신은 우리 가족의 가계부를 간단히 분석하는 소비 분석 어시스턴트입니다.
-이번 주 총 지출과 주요 카테고리를 짧게 요약하고, 절약이 필요해 보이는 부분이 있을 때만 근거와 함께 권고하세요. 실천 가능한 제안은 최대 1개만 작성하세요.
-지난주 지출이 0원이므로 전주 대비 비교나 증감 평가를 하지 마세요.
-제공된 숫자를 그대로 사용하고 추측하지 마세요. Telegram 메시지로 250자 이내로 작성하세요."""
+    if stats["current"]["total"] == 0:
+        instructions = """소비 분석 문장만 작성하세요. 이번 주 지출이 없다는 상황을 짧고 친근하게 설명하세요. 제목, 날짜, 금액, 카테고리, 퍼센트, 숫자, 인사말, 제안은 작성하지 마세요. 100자 이내 한국어로 답하세요."""
+    elif stats["previous"]["total"] == 0:
+        instructions = """소비 분석 문장만 작성하세요. 이번 주 소비에서 관찰되는 점과 절약이 필요해 보이는 부분이 있을 때의 짧은 권고를 작성하세요. 지난주와 비교하지 마세요. 제목, 날짜, 금액, 퍼센트, 숫자, 별도 카테고리 목록은 작성하지 마세요. 180자 이내 한국어로 답하세요."""
     else:
-        instructions = """당신은 우리 가족의 가계부를 분석하고 평가하는 소비 분석 어시스턴트입니다.
-Python에서 계산한 지출 통계를 바탕으로 지난주 소비를 객관적으로 평가하세요.
-전체 지출 수준과 전주 대비 변화, 가장 많이 지출한 카테고리, 크게 증가·감소한 지출,
-잘한 점과 아쉬운 점, 이번 주에 실천할 구체적인 제안을 고려하세요.
-단순 나열이 아닌 판단과 의견을 제시하세요. 절약이 필요하다고 판단되면 어떤 카테고리에서 왜 절약할지 구체적으로 권고하세요. 다만 데이터만으로 알 수 없는 사정은 추측하지 마세요.
-숫자는 Python 계산값을 그대로 사용하고 원본 거래내역은 제공되지 않았습니다.
-친근한 한국어 Telegram 메시지로 500자 이내 작성하세요."""
-    return instructions + "\n\n[집계 데이터]\n" + json.dumps(data, ensure_ascii=False)
+        instructions = """소비 분석 문장만 작성하세요. 지난주 소비를 객관적으로 평가하고, 잘한 점·아쉬운 점·절약이 필요한 부분과 근거·이번 주 실천 제안을 포함하세요. 제목, 날짜, 금액, 퍼센트, 숫자, 카테고리별 금액 목록은 작성하지 마세요. 제공된 집계만 사용하고 사정을 추측하지 마세요. 350자 이내 한국어로 답하세요."""
+    return instructions + "\n\n[Python 집계 데이터]\n" + json.dumps(data, ensure_ascii=False)
 
-def generate_summary(stats, client_factory=OpenAI):
+
+def generate_analysis(stats, client_factory=OpenAI):
+    if stats["current"]["total"] == 0:
+        log.info("Current period has no spending; skipping OpenAI analysis")
+        return ""
     client = client_factory(api_key=os.environ["OPENAI_API_KEY"])
-    max_tokens = 200 if stats["current"]["total"] == 0 else 300 if stats["previous"]["total"] == 0 else 500
+    max_tokens = 250 if stats["previous"]["total"] == 0 else 450
     response = client.responses.create(model=os.environ.get("OPENAI_MODEL", "gpt-5.6-luna"), input=build_prompt(stats), max_output_tokens=max_tokens)
     usage = getattr(response, "usage", None)
     if usage:
         log.info("OpenAI usage input=%s output=%s total=%s", getattr(usage, "input_tokens", None), getattr(usage, "output_tokens", None), getattr(usage, "total_tokens", None))
-    return (response.output_text or "주간 리포트를 생성하지 못했습니다.").strip()[:500]
+    return (response.output_text or "").strip()[:500]
 
+
+def generate_summary(stats, client_factory=OpenAI):
+    """Backward-compatible name for callers of the former analysis function."""
+    return generate_analysis(stats, client_factory)
 
 def send_telegram(text, chat_ids):
     token = os.environ["TELEGRAM_BOT_TOKEN"]
@@ -110,7 +148,7 @@ def main(argv=None):
         if args.dry_run:
             print(json.dumps(stats, ensure_ascii=False, indent=2))
             return 0
-        send_telegram(generate_summary(stats), stats["chat_ids"])
+        send_telegram(build_report_message(stats, generate_analysis(stats)), stats["chat_ids"])
         log.info("Weekly report sent to %d chats", len(stats["chat_ids"]))
     except Exception:
         log.exception("Weekly report failed; existing services are unaffected")

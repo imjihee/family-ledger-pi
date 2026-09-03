@@ -43,7 +43,7 @@ Cloudflare 고정 주소의 `/`에서 로그인 후 지출 목록, 월·사용�
 
 ## 주간 OpenAI 리포트
 
-`weekly_report.py`는 매주 월요일 09:00에 실행됩니다. Python이 현재 주(월요일~오늘)와 지난 주(월요일~일요일)의 합계·카테고리·사용자·일평균·증감률을 계산하고, 집계 JSON만 OpenAI Responses API에 전달합니다. 생성된 500자 이내 요약은 DB에 저장된 가족 Telegram chat ID로 보냅니다.
+`weekly_report.py`는 매주 일요일 19:00에 실행됩니다. Python이 현재 주(월요일~오늘)와 지난 주(월요일~일요일)의 합계·카테고리·사용자·일평균·증감률을 계산하고, 집계 JSON만 OpenAI Responses API에 전달합니다. 생성된 500자 이내 요약은 DB에 저장된 가족 Telegram chat ID로 보냅니다.
 
 환경 파일을 설정한 뒤 timer를 활성화합니다.
 

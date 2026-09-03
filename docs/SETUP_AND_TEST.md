@@ -18,7 +18,7 @@ Telegram 수신에는 Tunnel·webhook·포트포워딩이 필요하지 않습니
 http-server.service          Flask 웹/API (8080)
 telegram-ledger.service      Telegram getUpdates 봇
 http-server-tunnel.service   고정 Cloudflare Tunnel
-weekly-report.timer           매주 월요일 09:00
+weekly-report.timer           매주 일요일 19:00
 ```
 
 부팅 후 자동 시작하려면 한 번 설정합니다.
