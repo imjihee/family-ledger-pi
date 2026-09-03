@@ -76,6 +76,6 @@ POST /event            기존 capture API (Bearer 인증)
 ```text
 script/check_server.sh       운영 서비스 상태
 script/run_services.sh       운영 서비스 시작
-script/send_report_now.sh    오늘 기준 리포트 실행
+script/send_weekly_expense_report.sh    오늘 기준 리포트 실행
 script/watch_server.sh       운영 로그 follow
 ```

@@ -56,13 +56,13 @@ systemctl --user enable --now weekly-report.timer
 실제 전송 없이 계산만 확인:
 
 ```bash
-./script/send_report_now.sh --dry-run
+./script/send_weekly_expense_report.sh --dry-run
 ```
 
 오늘 기준 실제 전송:
 
 ```bash
-./script/send_report_now.sh
+./script/send_weekly_expense_report.sh
 ```
 
 ## 비밀·데이터 파일
